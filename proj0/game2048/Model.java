@@ -5,7 +5,7 @@ import java.util.Observable;
 
 
 /** The state of a game of 2048.
- *  @author TODO: YOUR NAME HERE
+ *  @author Alexina J. Chang
  */
 public class Model extends Observable {
     /** Current contents of the board. */
@@ -111,8 +111,106 @@ public class Model extends Observable {
         changed = false;
 
         // TODO: Modify this.board (and perhaps this.score) to account
-        // for the tilt to the Side SIDE. If the board changed, set the
+        // for the tilt to the Side SIDE.
+        // 1. CHANGE: If the board changed, set the
         // changed local variable to true.
+
+        // 2. Kill the space: up direction move only, iterating from top to bottom to make sure a tile moves just once
+        // 1) top row is when row = board.size() - 1
+        // 2) check space: if there is space, find the first tile below that's not a space and move it up
+
+        // 3. MERGE:
+        // 1) check if the tile below has the same value:
+        // if yes: add the value and kill the below tile make it a space
+        // if no: no move
+        // if it's a space, means it's merged into others already, no move
+
+        // 4. Kill the space again
+
+
+
+        board.setViewingPerspective(side);
+
+        for (int col = 0; col < board.size(); col += 1) {
+
+            // KILL THE SPACES
+            for (int row = board.size() - 1; row >= 0; row -= 1) {
+
+                Tile t1 = board.tile(col, row);
+
+                // find the next cell in the same col that is not null to fill in this space
+                // once you find the very next cell that fills into the space, you BREAK!!!
+                // otherwise the loop goes on and t1 will be replaced again and again supposedly there are multiple tiles that are not null.
+                if (t1 == null) {
+
+                    for (int r = row - 1; r >=0; r -= 1) {
+
+                        Tile t2 = board.tile(col, r);
+
+                        if (t2 != null) {
+                            board.move(col, row, t2);
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+
+            // MERGE
+            for (int row = board.size() - 1; row >= 0; row -= 1) {
+
+                Tile t1 = board.tile(col, row);
+
+                if (row - 1 < 0) {
+                    break;
+                }
+
+                Tile t2 = board.tile(col, row - 1);
+
+                if (t1 != null && t2 != null) {
+
+                    if (t1.value() == t2.value()) {
+
+                        score += (t2.value() * 2);
+
+                        // it seems that when t2 is moved to t1, it merges with t1 automatically
+                        // so t1.merge(col, row, t2) is not necessary and it didn't really work anyway
+//                        t1.merge(col, row, t2);
+
+                        board.move(col, row, t2);
+
+                        changed = true;
+
+                    }
+                }
+
+            }
+
+            // KILL THE SPACES AGAIN
+            for (int row = board.size() - 1; row >= 0; row -= 1) {
+
+                Tile t1 = board.tile(col, row);
+
+                // find the next cell in the same col that is not null to fill in this space
+                if (t1 == null) {
+
+                    for (int r = row - 1; r >=0; r -= 1) {
+
+                        Tile t2 = board.tile(col, r);
+
+                        if (t2 != null) {
+                            board.move(col, row, t2);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+        }
+
+
+        board.setViewingPerspective(Side.NORTH);
 
         checkGameOver();
         if (changed) {
@@ -138,8 +236,16 @@ public class Model extends Observable {
      * */
     public static boolean emptySpaceExists(Board b) {
         // TODO: Fill in this function.
+        for (int row = 0; row < b.size(); row += 1) {
+            for (int col = 0; col < b.size(); col += 1) {
+                if (b.tile(col, row) == null) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
+
 
     /**
      * Returns true if any tile is equal to the maximum valid value.
@@ -148,6 +254,17 @@ public class Model extends Observable {
      */
     public static boolean maxTileExists(Board b) {
         // TODO: Fill in this function.
+        for (int row = 0; row < b.size(); row += 1) {
+            for (int col = 0; col < b.size(); col += 1) {
+
+                // null doesnt have a value, can't assume they all can do .value() in the first place
+                if (b.tile(col, row) != null) {
+                    if (b.tile(col, row).value() == MAX_PIECE) {
+                        return true;
+                    }
+                }
+            }
+        }
         return false;
     }
 
@@ -159,6 +276,48 @@ public class Model extends Observable {
      */
     public static boolean atLeastOneMoveExists(Board b) {
         // TODO: Fill in this function.
+        for (int row = 0; row < b.size(); row += 1) {
+            for (int col = 0; col < b.size(); col += 1) {
+
+                // at least one empty space
+                if (b.tile(col, row) == null) {
+                    return true;
+                }
+
+                // every tile compares to what it has on the right side and down side
+                // tile at the bottom row don't compare to downstairs
+                // and right col don't compare to right neighbors
+                else {
+                    // if it's neither at the bottom row nor right margin
+                    if (row + 1 < b.size() && col + 1 < b.size() && b.tile(col + 1, row) != null && b.tile(col, row + 1) != null) {
+
+                        // compare to its right neighbor
+                        if (b.tile(col, row).value() == b.tile(col + 1, row).value()) {
+                            return true;
+                        }
+
+                        // compare to its downstairs neighbor
+                        else if (b.tile(col, row).value() == b.tile(col, row + 1).value()) {
+                            return true;
+                        }
+                    }
+
+                    // if it's at the bottom but not right margin
+                    else if (row + 1 == b.size() && col + 1 < b.size() && b.tile(col + 1, row) != null) {
+                        if (b.tile(col, row).value() == b.tile(col + 1, row).value()) {
+                            return true;
+                        }
+                    }
+
+                    // if it's at the right margin but not the bottom row
+                    else if (col + 1 == b.size() && row + 1 < b.size() && b.tile(col, row + 1) != null) {
+                        if (b.tile(col, row).value() == b.tile(col, row + 1).value()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
         return false;
     }
 
